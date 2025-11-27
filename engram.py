@@ -92,6 +92,7 @@ def parse_entries(content):
         except ValueError:
             dt = None
         tags_line = raw_entries[i+2]
+        content_block = raw_entries[i+3].rstrip("\n")
         tags_list = list_tags(tags_line)
         parsed.append({
             'date': date_str,
@@ -99,8 +100,8 @@ def parse_entries(content):
             'id': raw_entries[i+1],
             'tags': tags_line,
             'tags_list': tags_list,
-            'content': raw_entries[i+3].strip(),
-            'full_match': f"## [{raw_entries[i]}] {{{raw_entries[i+1]}}} {raw_entries[i+2]}\n{raw_entries[i+3]}\n"
+            'content': content_block.strip(),
+            'full_match': f"## [{raw_entries[i]}] {{{raw_entries[i+1]}}} {tags_line}\n{content_block}\n"
         })
     return parsed
 
