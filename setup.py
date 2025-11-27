@@ -12,7 +12,16 @@ setup(
     author='Project Engram',
     license='MIT',
     python_requires='>=3.8',
-    py_modules=['engram'],
+    py_modules=[
+        'engram',
+        'engram_config',
+        'engram_lock',
+        'engram_models',
+        'engram_utils',
+        'engram_storage',
+        'engram_recall',
+        'engram_commands',
+    ],
     entry_points={
         'console_scripts': [
             'pmem=engram:main',
