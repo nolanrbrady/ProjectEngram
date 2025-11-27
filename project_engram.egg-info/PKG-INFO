@@ -1,0 +1,61 @@
+Metadata-Version: 2.4
+Name: project-engram
+Version: 1.0.0
+Summary: Persistent memory CLI bridge for coding agents.
+Author: Project Engram
+License: MIT
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Software Development :: Documentation
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Dynamic: author
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: license
+Dynamic: requires-python
+Dynamic: summary
+
+## Project Engram (pmem)
+A zero-dependency, drop-in persistent memory layer for CLI Coding Agents.
+
+## The Problem
+CLI Agents are stateless. They don't remember architectural decisions made yesterday, leading to inconsistent code styles and repeated mistakes.
+
+## The Solution
+Engram acts as a "hive mind" for your agents. It creates a .engram/ directory where it stores semantic memories in Markdown, and provides a CLI tool (pmem) that agents are instructed to use.
+
+## Installation
+pip install -e .
+
+## Quick Start
+Initialize:
+
+pmem init
+
+This creates .engram/ and AGENT_PROTOCOLS.md.
+
+Instruct the Agent: Add this to your prompt when starting an agent:
+
+"Read AGENT_PROTOCOLS.md and follow the instructions before starting."
+
+Search by tag:
+
+pmem tags
+pmem recall --tag decisions
+
+## Features
+- Atomic Locking: Safe for multiple concurrent agents.
+
+- Recency Bias: Newer memories rank higher in search results.
+
+- Deprecation: Agents can mark old decisions as obsolete.
+
+- Critical Constraints: Flag memories as --critical to force them to appear in every search (good for safety rules).
+
+- Tag Search: Filter recall results by tag via `pmem recall --tag <tag>`.

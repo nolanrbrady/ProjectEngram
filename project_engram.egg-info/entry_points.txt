@@ -1,0 +1,2 @@
+[console_scripts]
+pmem = engram:main

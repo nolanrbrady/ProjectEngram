@@ -1,0 +1,8 @@
+README.md
+engram.py
+setup.py
+project_engram.egg-info/PKG-INFO
+project_engram.egg-info/SOURCES.txt
+project_engram.egg-info/dependency_links.txt
+project_engram.egg-info/entry_points.txt
+project_engram.egg-info/top_level.txt
