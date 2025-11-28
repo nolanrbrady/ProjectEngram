@@ -144,6 +144,7 @@ def test_recall_pins_critical_first(engram_env, capsys):
     critical = build_remember_args("decisions", "ops constraint", tags="critical", critical=True, require_confirm=True)
     engram.cmd_remember(normal)
     engram.cmd_remember(critical)
+    capsys.readouterr()  # clear suggested links output
 
     engram.cmd_recall(recall_args(query="ops"))
     output = capsys.readouterr().out
@@ -167,9 +168,14 @@ def test_recall_latest_orders_by_time(engram_env, capsys):
 def test_tags_lists_all_tags(engram_env, capsys):
     engram.cmd_remember(build_remember_args("decisions", "Alpha entry", tags="alpha,gamma"))
     engram.cmd_remember(build_remember_args("patterns", "Beta entry", tags="beta"))
+    capsys.readouterr()  # clear suggested links output
 
     engram.cmd_tags(argparse.Namespace())
-    lines = [line for line in capsys.readouterr().out.strip().splitlines() if line and not line.startswith("Memory stored")]
+    lines = [
+        line
+        for line in capsys.readouterr().out.strip().splitlines()
+        if line and not line.startswith("Memory stored") and not line.startswith("Suggested links")
+    ]
     assert lines[0] == "--- KNOWN TAGS ---"
     assert lines[1] == "alpha, beta, gamma"
 
@@ -179,6 +185,7 @@ def test_audit_shows_only_critical(engram_env, capsys):
     engram.cmd_remember(
         build_remember_args("decisions", "Critical rule", tags="critical", critical=True, require_confirm=True)
     )
+    capsys.readouterr()  # clear suggested links output
     engram.cmd_audit(argparse.Namespace())
     output = capsys.readouterr().out
     assert "--- CRITICAL MEMORIES AUDIT ---" in output
@@ -198,6 +205,76 @@ def test_backlinks_are_added(engram_env):
     updated_root = engram.find_entry(engram_env, root_entry.id)
     child_entry = next(e for e in engram.list_all_entries(engram_env) if e.id != root_entry.id)
     assert updated_root
+    assert child_entry.id in updated_root.links
+
+
+def test_link_to_missing_target_is_tolerated(engram_env):
+    missing_id = "NOPE-123"
+    args = build_remember_args("notes", "Loose link", tags="misc", links=missing_id)
+    engram.cmd_remember(args)
+    entry = engram.list_all_entries(engram_env)[0]
+    assert missing_id in entry.links
+    # No target created
+    assert not list((engram_env / "hippocampus").glob(f"*/{missing_id}.md"))
+
+
+def test_multiple_links_add_backlinks_to_all(engram_env):
+    root1 = build_remember_args("context", "Root1", tags="a")
+    root2 = build_remember_args("context", "Root2", tags="b")
+    engram.cmd_remember(root1)
+    engram.cmd_remember(root2)
+    roots = engram.list_all_entries(engram_env)
+    ids = [r.id for r in roots]
+
+    child = build_remember_args("notes", "Child", tags="c", links=",".join(ids))
+    engram.cmd_remember(child)
+    child_entry = next(e for e in engram.list_all_entries(engram_env) if e.category == "notes")
+
+    updated = {rid: engram.find_entry(engram_env, rid) for rid in ids}
+    assert all(child_entry.id in r.links for r in updated.values())
+
+
+def test_edit_removing_links_strips_backlink(engram_env):
+    root = build_remember_args("context", "Root", tags="a")
+    engram.cmd_remember(root)
+    root_entry = engram.list_all_entries(engram_env)[0]
+
+    child = build_remember_args("notes", "Child", tags="c", links=root_entry.id)
+    engram.cmd_remember(child)
+    child_entry = next(e for e in engram.list_all_entries(engram_env) if e.id != root_entry.id)
+    assert child_entry.id in engram.find_entry(engram_env, root_entry.id).links
+
+    # Remove link
+    engram.cmd_edit(build_edit_args(child_entry.id, "Child updated", links=""))
+    updated_root = engram.find_entry(engram_env, root_entry.id)
+    assert child_entry.id not in updated_root.links
+
+
+def test_duplicate_links_do_not_create_duplicate_backlinks(engram_env):
+    root = build_remember_args("context", "Root", tags="root")
+    engram.cmd_remember(root)
+    root_entry = engram.list_all_entries(engram_env)[0]
+
+    dup_link = f"{root_entry.id},{root_entry.id}"
+    child = build_remember_args("notes", "Child", tags="c", links=dup_link)
+    engram.cmd_remember(child)
+
+    child_entry = next(e for e in engram.list_all_entries(engram_env) if e.id != root_entry.id)
+    updated_root = engram.find_entry(engram_env, root_entry.id)
+    assert updated_root.links.count(child_entry.id) == 1
+
+
+def test_deprecating_linked_entry_retains_backlinks(engram_env):
+    root = build_remember_args("context", "Root", tags="root")
+    engram.cmd_remember(root)
+    root_entry = engram.list_all_entries(engram_env)[0]
+
+    child = build_remember_args("notes", "Child", tags="c", links=root_entry.id)
+    engram.cmd_remember(child)
+    child_entry = next(e for e in engram.list_all_entries(engram_env) if e.id != root_entry.id)
+
+    engram.cmd_deprecate(argparse.Namespace(id=child_entry.id))
+    updated_root = engram.find_entry(engram_env, root_entry.id)
     assert child_entry.id in updated_root.links
 
 
@@ -256,6 +333,15 @@ def test_recall_uses_graph_bonus_for_neighbors(engram_env, capsys):
     out = capsys.readouterr().out
     assert "Root about deployments" in out
     assert "Linked neighbor" in out
+
+
+def test_remember_suggests_links_for_similar(engram_env, capsys):
+    engram.cmd_remember(build_remember_args("context", "Deploy guide", tags="deploy"))
+    capsys.readouterr()  # clear
+    engram.cmd_remember(build_remember_args("notes", "Deploy plan update", tags="deploy"))
+    out = capsys.readouterr().out
+    assert "Suggested links" in out
+    assert "Deploy guide" in out or "deploy" in out.lower()
 
 
 def test_promote_sets_reference_and_cortex(engram_env):

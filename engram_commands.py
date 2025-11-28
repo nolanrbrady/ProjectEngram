@@ -9,7 +9,7 @@ from typing import List
 import engram_config as cfg
 from engram_lock import FileLock
 from engram_models import EngramEntry
-from engram_recall import compute_scores
+from engram_recall import compute_scores, compute_match_score
 from engram_storage import (
     add_backlinks,
     consolidate_entries,
@@ -24,8 +24,13 @@ from engram_storage import (
     recalc_path,
     update_recall_stats,
     write_entry,
+    sync_backlinks,
 )
 from engram_utils import base_strength, compute_capsule, generate_id, normalize_links, normalize_tags, now_ts
+
+# Link suggestion tuning
+SUGGESTION_THRESHOLD = 10
+SUGGESTION_LIMIT = 3
 
 
 def _nudge_agent_doc(agent_path: Path, protocol_path: Path):
@@ -112,6 +117,30 @@ You operate in a project with a **Persistent Memory Engram**. Use `pmem` for con
     print("Memory regions created: hippocampus, cortex, amygdala.")
 
 
+def suggest_links(engram_path: Path, new_entry: EngramEntry):
+    """
+    Suggest related engrams based on lexical similarity to encourage explicit linking.
+    """
+    others = [e for e in list_all_entries(engram_path) if e.id != new_entry.id]
+    if not others:
+        return
+    terms = (new_entry.content + " " + " ".join(new_entry.tags)).lower().split()
+    scored = []
+    for e in others:
+        text = f"{e.title} {e.summary} {e.content} {' '.join(e.tags)}"
+        score = compute_match_score(text, terms)
+        if score >= SUGGESTION_THRESHOLD:
+            scored.append((score, e))
+    scored.sort(key=lambda t: t[0], reverse=True)
+    scored = scored[:SUGGESTION_LIMIT]
+    if not scored:
+        return
+    print("\nSuggested links (consider linking to):")
+    for score, e in scored:
+        print(f"- {e.id} [{e.category}] {e.title} (score {int(score)})")
+    print()
+
+
 def build_entry(category: str, content: str, tags, links, importance, retention, region, title, pin_until, expiry) -> EngramEntry:
     capsule = compute_capsule(content)
     created_ts = now_ts()
@@ -183,6 +212,7 @@ def cmd_remember(args):
             ensure_amygdala_pointer(engram_path, entry)
 
     print(f"Memory stored as {entry.id} in {region}/{category}.")
+    suggest_links(engram_path, entry)
 
 
 def cmd_promote(args):
@@ -224,6 +254,7 @@ def cmd_edit(args):
         print(f"Memory {args.id} is deprecated; create a new entry instead.")
         return
     old_path = entry.path
+    old_links = list(entry.links)
 
     if args.tags is not None:
         entry.tags = normalize_tags(args.tags)
@@ -246,7 +277,7 @@ def cmd_edit(args):
         write_entry(entry, target_path=target)
         if old_path and Path(old_path) != target and Path(old_path).exists():
             Path(old_path).unlink()
-        add_backlinks(engram_path, entry, entry.links)
+        sync_backlinks(engram_path, entry, old_links)
         if entry.importance == "critical":
             ensure_amygdala_pointer(engram_path, entry)
         else:

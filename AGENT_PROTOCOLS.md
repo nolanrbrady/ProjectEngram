@@ -28,9 +28,11 @@ You operate in a project with a **Persistent Memory Engram**. Use `pmem` for con
 - Graph-aware: links expand related engrams; hippocampus is downweighted unless recent.
 - `pmem recall --latest` shows newest across regions (critical first), respects `--tag`.
 
-## LINKS / IDS
-- Use `--links ID1,ID2` when remembering/editing to connect related engrams; backlinks are auto-added.
-- IDs are shown in recall output (format `ABC-123456`); use them for edit/promote/deprecate/link.
+## LINKS / IDS (do this!)
+- Why link: linked engrams are pulled in during recall via the graph; without links, related memories may be missed. Always link decisions ↔ context ↔ patterns ↔ journal when related.
+- How: add `--links ID1,ID2` on `pmem remember` or `pmem edit` to connect; backlinks are auto-added and maintained on edit (removed when you drop a link, added when you add one).
+- IDs: shown in recall output (format `ABC-123456`); use them for edit/promote/deprecate/link.
+- Suggestions: after `pmem remember`, you may see “Suggested links”; consider linking to those IDs if relevant (high-similarity suggestions only).
 
 ## QUICK EXAMPLES
 - New reference rule to cortex: `pmem remember decisions "Deploy requires canary" --tags ops,deployment --retention reference`

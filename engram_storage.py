@@ -86,6 +86,37 @@ def add_backlinks(engram_path: Path, new_entry: EngramEntry, links: List[str]):
             write_entry(linked)
 
 
+def sync_backlinks(engram_path: Path, entry: EngramEntry, old_links: List[str]):
+    """
+    Ensure backlinks match the current link set:
+    - Add backlinks for new links
+    - Remove backlinks from links that were removed
+    """
+    existing = {e.id: e for e in list_all_entries(engram_path, include_deprecated=True)}
+    old_set = set(old_links or [])
+    new_set = set(entry.links or [])
+
+    # Add new backlinks
+    for lid in new_set - old_set:
+        target = existing.get(lid)
+        if not target:
+            continue
+        if entry.id not in target.links:
+            target.add_links([entry.id])
+            target.updated = now_ts()
+            write_entry(target)
+
+    # Remove backlinks no longer referenced
+    for lid in old_set - new_set:
+        target = existing.get(lid)
+        if not target:
+            continue
+        if entry.id in target.links:
+            target.links = [l for l in target.links if l != entry.id]
+            target.updated = now_ts()
+            write_entry(target)
+
+
 def ensure_amygdala_pointer(engram_path: Path, entry: EngramEntry):
     pointer_path = engram_path / "amygdala" / f"{entry.id}.md"
     pointer = EngramEntry(

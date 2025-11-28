@@ -68,4 +68,11 @@ def normalize_tags(tags: Optional[str]) -> List[str]:
 def normalize_links(links: Optional[str]) -> List[str]:
     if not links:
         return []
-    return [l.strip() for l in links.split(",") if l.strip()]
+    seen = []
+    for l in links.split(","):
+        val = l.strip()
+        if not val:
+            continue
+        if val not in seen:
+            seen.append(val)
+    return seen
